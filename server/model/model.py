@@ -11,41 +11,30 @@ import google.generativeai as genai
 import os
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 warnings.filterwarnings('ignore')
-from decouple import config
 
-# Inisialisasi Variabel
 amount = 0.0;
 transaction_type = "";
 location = "";
 account_id = "";
 
-api_key = config('API_KEY')
-genai.configure(api_key=api_key)
-
 gemini = genai.GenerativeModel("gemini-1.5-flash")
 
 FILE_PATH = os.getcwd()
-# file = open(FILE_PATH+"\erp-anomaly-detection-ui\server\model\dataset\subset_df.csv", "rb")
-# subset_df = pd.read_csv(file)
-# subset_df_2 = pd.read_csv(file)
-# file.close()
 
-subset_df = pd.read_csv(FILE_PATH+'\server\model\dataset\subset_df.csv')
-subset_df_2 = pd.read_csv(FILE_PATH+'\server\model\dataset\subset_df.csv')
-
-# subset_df = pd.read_csv('/content/subset_df.csv')
-# subset_df_2 = pd.read_csv('/content/subset_df.csv')
-
+subset_df = pd.read_csv(FILE_PATH+'/server/model/dataset/subset_df.csv')
+subset_df_2 = pd.read_csv(FILE_PATH+'/server/model/dataset/subset_df.csv')
 
 # Label encoder
 label_encoders = {}
-for col in ['TransactionType', 'Location', 'AccountID']:
-    le = LabelEncoder()
-    subset_df[col] = le.fit_transform(subset_df[col])
-    label_encoders[col] = {
-        'encoder': le,
-        'mapping': dict(zip(le.classes_, le.transform(le.classes_)))
-    }
+
+def get_label_encoders():
+    for col in ['TransactionType', 'Location', 'AccountID']:
+        le = LabelEncoder()
+        subset_df[col] = le.fit_transform(subset_df[col])
+        label_encoders[col] = {
+            'encoder': le,
+            'mapping': dict(zip(le.classes_, le.transform(le.classes_)))
+        }
 
 def apply_and_update_encoding(new_df):
     """
@@ -161,7 +150,7 @@ def gemini_explanation(data, anomaly_df, shap_output_df, user_input):
             return max_feature
 
         feature_name = check_outlier(shap_output_df)
-        print(feature_name)
+        # print(feature_name)
 
         if feature_name == "Amount":
             non_anomaly_avg_amount = data[
@@ -205,14 +194,9 @@ def gemini_explanation(data, anomaly_df, shap_output_df, user_input):
         if user_input:
             base_prompt += f" User asked: '{user_input}'"
 
-        print(base_prompt)
+        # print(base_prompt)
 
         response = gemini.generate_content(base_prompt)
-        file_name = f"response_{anomaly['AccountID']}.txt"
-        with open(file_name, "w") as file:
-            file.write(response.text)
-
-        print(response.text)
         return response.text
 
     else:
@@ -220,80 +204,64 @@ def gemini_explanation(data, anomaly_df, shap_output_df, user_input):
         message = (
             f"No ERP anomaly detected. All transactions appear normal based on the SHAP values {total_contribution:.3f}."
         )
-        file_name = f"response_{anomaly['AccountID']}.txt"
-        with open(file_name, "w") as file:
-            file.write(message)
 
-        print(message)
         return message
 
-file_path = FILE_PATH+r'\server\model\trained_models.pkl'
-
-# Load model dari file
+file_path = FILE_PATH+ '/server/model/trained_models.pkl'
 models = load_models(file_path)
-
-# Load model dari file
 model1, model2, model3, model4, model5 = models
-
-# Contoh tidak anomali
-# prompt = "I have a transaction with Amount 68629.69, Transaction Type Transfer, Location London, Account ID ACC5." 
-# Contoh anomaly
-prompt = "I have a transaction with Amount 87.87, Transaction Type Purchase, Location London, Account ID ACC6."
-
-process_user_prompt(prompt)
-
-df_row = convert_to_dataframe(amount, transaction_type, location, account_id)
-print(df_row)
-
-encoded_df = apply_and_update_encoding(df_row)
-print(encoded_df)
-
-encoded_subset_df = apply_and_update_encoding(subset_df_2)
-print(encoded_subset_df.head(10))
-
-final_df = encoded_df.copy()
-
-mms = MinMaxScaler(feature_range=(0, 1))
-mms.fit(encoded_subset_df[['Amount']])  # Fit hanya sekali pada subset_df
-
-final_df['Amount'] = mms.transform(final_df[['Amount']])
-
-print(final_df)
-# final_df = scale_amount(encoded_df)
-# final_df = final_df.head(1)
-# print(final_df)
-
-
-import shap
 
 # Calculate SHAP values for each model
 shap_values_list = []
 
-for fold, model in enumerate(models):
-    explainer = shap.Explainer(model)
-    shap_values = explainer(final_df)  # SHAP values for test set in this fold
-    shap_values_list.append(shap_values)
+def generate_shap_values(final_df):
+    for fold, model in enumerate(models):
+        explainer = shap.Explainer(model)
+        shap_values = explainer(final_df)  # SHAP values for test set in this fold
+        shap_values_list.append(shap_values)
 
-# Aggregate SHAP values (mean across folds)
-shap_values_mean_3 = np.mean([shap_values.values for shap_values in shap_values_list], axis=0)
+    # Aggregate SHAP values (mean across folds)
+    shap_values_mean_3 = np.mean([shap_values.values for shap_values in shap_values_list], axis=0)
 
-# # Dapatkan nilai SHAP per fitur
-# shap_values_df = pd.DataFrame(shap_values.values, columns=X_test.columns)
-# shap_values_df['total_contribution'] = shap_values_df.sum(axis=1)
+    shap_values_mean_df_3 = pd.DataFrame(
+        shap_values_mean_3,
+        columns=final_df.columns  # Nama fitur
+    )
+    shap_values_mean_df_3['total_contribution'] = shap_values_mean_3.sum(axis=1)  # Total kontribusi per baris
+    return shap_values_mean_df_3
 
-# # VISUALISASI NON OUTLIER (Index 0)
-# shap.initjs()
-# shap.plots.force(shap_values_mean[0])
+def __init__(self, name):
+    self.name = name
 
-# Buat DataFrame dari rata-rata SHAP values
-shap_values_mean_df_3 = pd.DataFrame(
-    shap_values_mean_3,
-    columns=final_df.columns  # Nama fitur
-)
-shap_values_mean_df_3['total_contribution'] = shap_values_mean_3.sum(axis=1)  # Total kontribusi per baris
+def Generative_AI(prompt):
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    print("API_KEY: ", gemini_api_key)
+    genai.configure(api_key=gemini_api_key)
 
-# Tampilkan DataFrame
-shap_values_mean_df_3
-print(shap_values_mean_df_3)
+    get_label_encoders()
 
-gemini_explanation(subset_df_2, df_row, shap_values_mean_df_3, "")
+    process_user_prompt(prompt)
+
+    df_row = convert_to_dataframe(amount, transaction_type, location, account_id)
+    print(df_row)
+
+    encoded_df = apply_and_update_encoding(df_row)
+    print(encoded_df)
+
+    encoded_subset_df = apply_and_update_encoding(subset_df_2)
+
+    final_df = encoded_df.copy()
+
+    mms = MinMaxScaler(feature_range=(0, 1))
+    mms.fit(encoded_subset_df[['Amount']])  # Fit hanya sekali pada subset_df
+
+    final_df['Amount'] = mms.transform(final_df[['Amount']])
+
+    print(final_df)
+    print(subset_df_2)
+
+    shap_values_mean_df = generate_shap_values(final_df)
+
+    message = gemini_explanation(subset_df_2, df_row, shap_values_mean_df, "")
+
+    return message
