@@ -150,7 +150,7 @@ def gemini_explanation(data, anomaly_df, shap_output_df, user_input):
             return max_feature
 
         feature_name = check_outlier(shap_output_df)
-        # print(feature_name)
+        print(feature_name)
 
         if feature_name == "Amount":
             non_anomaly_avg_amount = data[
@@ -194,9 +194,14 @@ def gemini_explanation(data, anomaly_df, shap_output_df, user_input):
         if user_input:
             base_prompt += f" User asked: '{user_input}'"
 
-        # print(base_prompt)
+        print(base_prompt)
 
         response = gemini.generate_content(base_prompt)
+        file_name = f"response_{anomaly['AccountID']}.txt"
+        with open(file_name, "w") as file:
+            file.write(response.text)
+
+        print(response.text)
         return response.text
 
     else:
@@ -204,8 +209,13 @@ def gemini_explanation(data, anomaly_df, shap_output_df, user_input):
         message = (
             f"No ERP anomaly detected. All transactions appear normal based on the SHAP values {total_contribution:.3f}."
         )
+        file_name = f"response_{anomaly['AccountID']}.txt"
+        with open(file_name, "w") as file:
+            file.write(message)
 
+        print(message)
         return message
+
 
 file_path = FILE_PATH+ '/server/model/trained_models.pkl'
 models = load_models(file_path)
@@ -235,7 +245,6 @@ def __init__(self, name):
 
 def Generative_AI(prompt):
     gemini_api_key = os.getenv("GEMINI_API_KEY")
-    print("API_KEY: ", gemini_api_key)
     genai.configure(api_key=gemini_api_key)
 
     get_label_encoders()
