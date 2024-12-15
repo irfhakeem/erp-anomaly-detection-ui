@@ -14,7 +14,19 @@ This is the Final Project of the Class A Knowledge-Based Systems Engineering cou
    ```bash
    cd yourproject
    ```
-3. Install Python and Vite dependencies:
+3. Setup venv
+   ```bash
+   python -m venv /path/to/new/virtual/environment
+   ```
+4. Navigate to venv/scripts
+   ```bash
+   cd venv/scripts
+   ```
+5. Activate the Virtual Environment
+   ```bash
+   activate.bat
+   ```
+6. Install Python and Vite dependencies:
 
    - Server
 
