@@ -23,7 +23,11 @@
                 : 'bg-gray-200 text-gray-800 mr-auto pl-3 pr-8',
             ]"
           >
-            {{ message.text }}
+            <div
+              v-if="!message.isUser"
+              v-html="formatMessage(message.text)"
+            ></div>
+            <div v-else>{{ message.text }}</div>
           </div>
         </div>
       </div>
@@ -86,16 +90,18 @@ export default {
         });
       }
     },
+    formatMessage(text) {
+      // Convert plain text to HTML
+      return text
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>") // Bold
+        .replace(/\* ([^*]+)/g, "<li>$1</li>") // Bullet list
+        .replace(/(?:\r\n|\r|\n)/g, "<br>") // Line breaks
+        .replace(/- ([^*]+)/g, "<li>$1</li>"); // Handle additional bullet formats
+    },
   },
 };
 </script>
 
-<style>
-/* Optional global styles */
-body {
-  font-family: "Inter", sans-serif;
-}
-</style>
 <style scoped>
 .chat-message {
   max-width: 70%;
